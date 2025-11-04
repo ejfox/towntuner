@@ -5,6 +5,49 @@ All notable changes to TownTuner will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - iOS 26 Dynamic Island Optimization
+
+**Complete integration with modern iOS media features**
+
+#### Dynamic Island Support (iPhone 14 Pro+)
+- Live playback state display with accurate playing/paused indicator
+- Real-time progress visualization with smooth scrubbing
+- Episode metadata display (title, number, comptroller)
+- High-quality 1024x1024 artwork with intelligent scaling
+- Interactive tap and long-press controls
+
+#### Enhanced Metadata
+- Added `MPNowPlayingInfoCenter.playbackState` for iOS 16+
+- Set `MPNowPlayingInfoPropertyPlaybackProgress` (0.0 to 1.0) for better scrubbing
+- Added `MPNowPlayingInfoPropertyIsLiveStream = false` for proper categorization
+- Included unique episode identifiers via `MPNowPlayingInfoPropertyExternalContentIdentifier`
+- Set service identifier for proper app attribution
+- Enhanced metadata with genre, composer, and album information
+
+#### Artwork Improvements
+- Upgraded from 512x512 to 1024x1024 retina-quality artwork
+- Implemented intelligent scaling based on display context (44x44 to 1024x1024)
+- Optimized for Dynamic Island, Lock Screen, and Control Center
+- Maintained brutalist aesthetic with crisp rendering at all sizes
+
+#### Background Playback
+- Added `audiovisualBackgroundPlaybackPolicy = .continuesIfPossible` (iOS 14.5+)
+- Optimized for continuous background audio playback
+- Better handling of audio interruptions and route changes
+
+#### Documentation
+- Created comprehensive `DYNAMIC_ISLAND.md` guide
+- Testing checklist for all modern iOS features
+- Platform requirements matrix
+- Best practices for media metadata
+
+### Technical Details
+See `DYNAMIC_ISLAND.md` for complete feature documentation and testing guide.
+
+---
+
 ## [1.1.0] - 2025-11-03
 
 ### Changed - Modern Audio Architecture Rewrite
