@@ -96,10 +96,10 @@ Update the episode list row to include year labels. For performance, pre-calcula
 
 ```swift
 // Pre-calculate year labels when loading episodes
-func prepareEpisodeMetadata(_ episodes: [Episode]) -> [(episode: Episode, showYearLabel: Bool)] {
+func prepareEpisodeMetadata(_ episodes: [Episode]) -> [EpisodeMetadata] {
     episodes.enumerated().map { index, episode in
         let showLabel = index == 0 || episode.year != episodes[index - 1].year
-        return (episode, showLabel)
+        return EpisodeMetadata(episode: episode, showYearLabel: showLabel)
     }
 }
 
@@ -162,11 +162,8 @@ struct EpisodeListView: View {
     @State private var selectedYear: Int?
     @State private var completedEpisodeIds: Set<Int>
     
-    private var episodeMetadata: [(episode: Episode, showYearLabel: Bool)] {
-        episodes.enumerated().map { index, episode in
-            let showLabel = index == 0 || episode.year != episodes[index - 1].year
-            return (episode, showLabel)
-        }
+    private var episodeMetadata: [EpisodeMetadata] {
+        prepareEpisodeMetadata(episodes)
     }
     
     var body: some View {

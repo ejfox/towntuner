@@ -198,7 +198,7 @@ When "HIDE PLAYED" filter is active, re-calculate year label visibility for filt
 
 ```swift
 // In your view model or state management
-func prepareFilteredEpisodes(allEpisodes: [Episode], hidePlayedEnabled: Bool, completedEpisodeIds: Set<Int>) -> [(episode: Episode, showYearLabel: Bool)] {
+func prepareEpisodeMetadata(allEpisodes: [Episode], hidePlayedEnabled: Bool, completedEpisodeIds: Set<Int>) -> [EpisodeMetadata] {
     // First filter the episodes if needed
     let visibleEpisodes = hidePlayedEnabled 
         ? allEpisodes.filter { !completedEpisodeIds.contains($0.id) }
@@ -207,7 +207,7 @@ func prepareFilteredEpisodes(allEpisodes: [Episode], hidePlayedEnabled: Bool, co
     // Then calculate year labels based on visible episodes
     return visibleEpisodes.enumerated().map { index, episode in
         let showLabel = index == 0 || episode.year != visibleEpisodes[index - 1].year
-        return (episode, showLabel)
+        return EpisodeMetadata(episode: episode, showYearLabel: showLabel)
     }
 }
 ```
@@ -220,8 +220,8 @@ struct EpisodeListView: View {
     @State private var completedEpisodeIds: Set<Int>
     @State private var hidePlayedEnabled: Bool
     
-    private var episodeMetadata: [(episode: Episode, showYearLabel: Bool)] {
-        prepareFilteredEpisodes(
+    private var episodeMetadata: [EpisodeMetadata] {
+        prepareEpisodeMetadata(
             allEpisodes: episodes,
             hidePlayedEnabled: hidePlayedEnabled,
             completedEpisodeIds: completedEpisodeIds
@@ -333,7 +333,7 @@ Your episode list should look like this:
 **Solution:** Ensure episodes are sorted chronologically and year label metadata is pre-calculated correctly
 
 ### Issue: Year labels break with filter
-**Solution:** Re-calculate metadata when filter changes using `prepareFilteredEpisodes()` function
+**Solution:** Re-calculate metadata when filter changes using the overloaded `prepareEpisodeMetadata()` function that accepts filter parameters
 
 ### Issue: Performance issues with large episode list
 **Solution:** Always use pre-calculated `EpisodeMetadata` - never compute year labels in view body or computed properties
@@ -350,7 +350,7 @@ struct EpisodeMetadata {
     let showYearLabel: Bool
 }
 
-func prepareEpisodes(_ episodes: [Episode]) -> [EpisodeMetadata] {
+func prepareEpisodeMetadata(_ episodes: [Episode]) -> [EpisodeMetadata] {
     episodes.enumerated().map { index, episode in
         let showLabel = index == 0 || episode.year != episodes[index - 1].year
         return EpisodeMetadata(episode: episode, showYearLabel: showLabel)
