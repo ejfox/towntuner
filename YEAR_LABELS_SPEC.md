@@ -64,31 +64,30 @@ Add subtle year labels on the left side of the episode list to provide temporal 
 
 ### 1. Data Model Enhancement
 
-Add year detection logic to episode grouping:
+Add year detection and pre-calculate year label visibility:
 
 ```swift
-struct Episode: Identifiable {
-    let id: Int
-    let number: Int
-    let title: String
-    let date: Date
-    let comptroller: String
-    
+extension Episode {
     var year: Int {
         Calendar.current.component(.year, from: date)
     }
-    
-    func isFirstOfYear(in episodes: [Episode]) -> Bool {
-        guard let index = episodes.firstIndex(where: { $0.id == self.id }) else {
-            return false
-        }
-        
-        if index == 0 { return true }
-        
-        let previousEpisode = episodes[index - 1]
-        return self.year != previousEpisode.year
+}
+
+// Pre-calculate year label visibility for performance
+struct EpisodeMetadata {
+    let episode: Episode
+    let showYearLabel: Bool
+}
+
+func prepareEpisodeMetadata(_ episodes: [Episode]) -> [EpisodeMetadata] {
+    episodes.enumerated().map { index, episode in
+        let showLabel = index == 0 || episode.year != episodes[index - 1].year
+        return EpisodeMetadata(episode: episode, showYearLabel: showLabel)
     }
 }
+```
+
+**Performance Note**: This approach is O(n) once when loading/filtering episodes, rather than O(n²) if calculating in each row view.
 ```
 
 ### 2. SwiftUI View Structure

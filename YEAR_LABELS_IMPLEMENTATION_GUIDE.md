@@ -4,43 +4,42 @@ This guide provides step-by-step instructions for implementing year labels in th
 
 ## Step 1: Update Episode Model
 
-Add year calculation and first-of-year detection to your Episode model:
+Add year calculation to your Episode model:
 
 ```swift
 extension Episode {
     var year: Int {
         Calendar.current.component(.year, from: date)
     }
-    
-    func isFirstOfYear(in episodes: [Episode]) -> Bool {
-        guard let index = episodes.firstIndex(where: { $0.id == self.id }) else {
-            return false
-        }
-        
-        // First episode overall is always first of its year
-        if index == 0 { return true }
-        
-        // Check if previous episode was in a different year
-        let previousEpisode = episodes[index - 1]
-        return self.year != previousEpisode.year
+}
+
+// Pre-calculate year label visibility for performance
+struct EpisodeMetadata {
+    let episode: Episode
+    let showYearLabel: Bool
+}
+
+func prepareEpisodeMetadata(_ episodes: [Episode]) -> [EpisodeMetadata] {
+    episodes.enumerated().map { index, episode in
+        let showLabel = index == 0 || episode.year != episodes[index - 1].year
+        return EpisodeMetadata(episode: episode, showYearLabel: showLabel)
     }
 }
 ```
 
+**Performance Note**: Pre-calculating year labels avoids O(n) lookups on each row render. With 360 episodes, this is critical for smooth scrolling.
+```
+
 ## Step 2: Update Episode Row View
 
-Modify the episode row to include year labels:
+Modify the episode row to include year labels using pre-calculated metadata:
 
 ```swift
 struct EpisodeRowView: View {
     let episode: Episode
-    let allEpisodes: [Episode]
+    let showYearLabel: Bool  // Pre-calculated, not computed per render
     let isCurrentlyPlaying: Bool
     let isCompleted: Bool
-    
-    private var showYearLabel: Bool {
-        episode.isFirstOfYear(in: allEpisodes)
-    }
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -99,12 +98,18 @@ struct EpisodeRowView: View {
 
 ## Step 3: Update List View (Optional Scroll-to-Year)
 
-Add year-based navigation to your list view:
+Add year-based navigation using pre-calculated metadata:
 
 ```swift
 struct EpisodeListView: View {
     @State private var episodes: [Episode]
+    @State private var completedEpisodeIds: Set<Int>
     @State private var selectedYear: Int?
+    
+    // Pre-calculate episode metadata
+    private var episodeMetadata: [EpisodeMetadata] {
+        prepareEpisodeMetadata(episodes)
+    }
     
     // Get unique years from episodes
     private var availableYears: [Int] {
@@ -132,18 +137,18 @@ struct EpisodeListView: View {
             
             // Episode list with year labels
             ScrollViewReader { scrollProxy in
-                List(episodes) { episode in
+                List(episodeMetadata, id: \.episode.id) { metadata in
                     EpisodeRowView(
-                        episode: episode,
-                        allEpisodes: episodes,
-                        isCurrentlyPlaying: episode.id == currentlyPlayingId,
-                        isCompleted: completedEpisodes.contains(episode.id)
+                        episode: metadata.episode,
+                        showYearLabel: metadata.showYearLabel,
+                        isCurrentlyPlaying: metadata.episode.id == currentlyPlayingId,
+                        isCompleted: completedEpisodeIds.contains(metadata.episode.id)
                     )
-                    .id(episode.id)
+                    .id(metadata.episode.id)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.black)
                     .onTapGesture {
-                        playEpisode(episode)
+                        playEpisode(metadata.episode)
                     }
                 }
                 .listStyle(.plain)
@@ -325,19 +330,13 @@ Your episode list should look like this:
 ## Common Issues & Solutions
 
 ### Issue: Year labels not showing
-**Solution:** Ensure episodes are sorted chronologically by date before displaying
-
-### Issue: Multiple year labels for same year
-**Solution:** Check the `isFirstOfYear` logic - it should only return true for the first episode
-
-### Issue: Year labels misaligned
-**Solution:** Verify the frame width (44pt) is consistent and not being overridden
+**Solution:** Ensure episodes are sorted chronologically and year label metadata is pre-calculated correctly
 
 ### Issue: Year labels break with filter
-**Solution:** Pass filter state to `isFirstOfYear(in:filtered:)` method
+**Solution:** Re-calculate metadata when filter changes using `prepareFilteredEpisodes()` function
 
-### Issue: Year labels not accessible
-**Solution:** Add `.accessibilityLabel("Year \(year)")` modifier
+### Issue: Performance issues with large episode list
+**Solution:** Always use pre-calculated `EpisodeMetadata` - never compute year labels in view body or computed properties
 
 ## Performance Considerations
 
