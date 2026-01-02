@@ -185,12 +185,13 @@ Comptroller: "Jeff Davis"
 
 ### If All Episodes of a Year Are Hidden
 ```
-│  2012  [Episodes hidden]      │  <- Year label disappears
-│                                │
-│  2013  [#017]  2013.01.05    │  <- Next year with visible episodes
-│        Jeff Davis             │
-│        ──────────────────     │
+│  (no episodes from 2012 visible)     │  <- Year completely skipped
+│                                       │
+│  2013  [#017]  2013.01.05            │  <- Next year with visible episodes
+│        Jeff Davis                     │
+│        ──────────────────────────     │
 ```
+*Note: If all episodes from a year are filtered out, that year's label doesn't appear at all*
 
 ## Color Values (Hex)
 

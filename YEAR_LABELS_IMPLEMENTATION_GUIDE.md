@@ -189,39 +189,57 @@ struct EpisodeListView: View {
 
 ## Step 4: Handle Filter Interactions
 
-When "HIDE PLAYED" filter is active, adjust year label visibility:
+When "HIDE PLAYED" filter is active, re-calculate year label visibility for filtered episodes:
 
 ```swift
-extension Episode {
-    func isFirstOfYear(in episodes: [Episode], filtered: Bool = false) -> Bool {
-        // Get the visible episodes (filtered or not)
-        let visibleEpisodes = filtered ? episodes.filter { !isCompleted($0) } : episodes
-        
-        guard let index = visibleEpisodes.firstIndex(where: { $0.id == self.id }) else {
-            return false
-        }
-        
-        if index == 0 { return true }
-        
-        let previousEpisode = visibleEpisodes[index - 1]
-        return self.year != previousEpisode.year
+// In your view model or state management
+func prepareFilteredEpisodes(allEpisodes: [Episode], hidePlayedEnabled: Bool, completedEpisodeIds: Set<Int>) -> [(episode: Episode, showYearLabel: Bool)] {
+    // First filter the episodes if needed
+    let visibleEpisodes = hidePlayedEnabled 
+        ? allEpisodes.filter { !completedEpisodeIds.contains($0.id) }
+        : allEpisodes
+    
+    // Then calculate year labels based on visible episodes
+    return visibleEpisodes.enumerated().map { index, episode in
+        let showLabel = index == 0 || episode.year != visibleEpisodes[index - 1].year
+        return (episode, showLabel)
     }
 }
 ```
 
-Update your view to pass filter state:
+Update your view to use pre-calculated metadata:
 
 ```swift
+struct EpisodeListView: View {
+    @State private var episodes: [Episode]
+    @State private var completedEpisodeIds: Set<Int>
+    @State private var hidePlayedEnabled: Bool
+    
+    private var episodeMetadata: [(episode: Episode, showYearLabel: Bool)] {
+        prepareFilteredEpisodes(
+            allEpisodes: episodes,
+            hidePlayedEnabled: hidePlayedEnabled,
+            completedEpisodeIds: completedEpisodeIds
+        )
+    }
+    
+    var body: some View {
+        List(episodeMetadata, id: \.episode.id) { metadata in
+            EpisodeRowView(
+                episode: metadata.episode,
+                showYearLabel: metadata.showYearLabel,
+                isCurrentlyPlaying: metadata.episode.id == currentlyPlayingId,
+                isCompleted: completedEpisodeIds.contains(metadata.episode.id)
+            )
+        }
+    }
+}
+
 struct EpisodeRowView: View {
     let episode: Episode
-    let allEpisodes: [Episode]
+    let showYearLabel: Bool
     let isCurrentlyPlaying: Bool
     let isCompleted: Bool
-    let hidePlayedEnabled: Bool // New parameter
-    
-    private var showYearLabel: Bool {
-        episode.isFirstOfYear(in: allEpisodes, filtered: hidePlayedEnabled)
-    }
     
     // ... rest of the view
 }
@@ -323,21 +341,34 @@ Your episode list should look like this:
 
 ## Performance Considerations
 
-- The `isFirstOfYear` method is O(n) for each episode row - consider caching results
-- Pre-calculate year label visibility when loading episodes:
+- Pre-calculate year label visibility when loading episodes to avoid O(n) lookups on each row render
+- Use pre-computed metadata instead of calculating `isFirstOfYear` for each row:
 
 ```swift
-struct EpisodeWithMetadata {
+// GOOD: Pre-calculate once when episodes load or filter changes
+struct EpisodeMetadata {
     let episode: Episode
-    let shouldShowYearLabel: Bool
+    let showYearLabel: Bool
 }
 
-func prepareEpisodes(_ episodes: [Episode]) -> [EpisodeWithMetadata] {
+func prepareEpisodes(_ episodes: [Episode]) -> [EpisodeMetadata] {
     episodes.enumerated().map { index, episode in
         let showLabel = index == 0 || episode.year != episodes[index - 1].year
-        return EpisodeWithMetadata(episode: episode, shouldShowYearLabel: showLabel)
+        return EpisodeMetadata(episode: episode, showYearLabel: showLabel)
     }
 }
+
+// Then use in your List:
+List(episodeMetadata, id: \.episode.id) { metadata in
+    EpisodeRowView(
+        episode: metadata.episode,
+        showYearLabel: metadata.showYearLabel,
+        // ...
+    )
+}
+```
+
+This approach is O(n) once when loading/filtering instead of O(n) per row render, resulting in smooth scrolling even with 360 episodes.
 ```
 
 ## Files Modified

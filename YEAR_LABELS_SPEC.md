@@ -58,7 +58,7 @@ Add subtle year labels on the left side of the episode list to provide temporal 
 - 2019: 40 episodes - Episodes #257-296
 - 2021: 1 episode - Episode #360 (finale)
 
-**Note:** There are gaps in the numbering (2020 had episodes, no 2021 recording data in CSV)
+**Note:** Episodes #297-359 appear to be from 2020 (not in CSV extract shown), and episode #360 is from 2021
 
 ## Implementation Approach
 
@@ -93,19 +93,27 @@ struct Episode: Identifiable {
 
 ### 2. SwiftUI View Structure
 
-Update the episode list row to include year labels:
+Update the episode list row to include year labels. For performance, pre-calculate year label visibility:
 
 ```swift
+// Pre-calculate year labels when loading episodes
+func prepareEpisodeMetadata(_ episodes: [Episode]) -> [(episode: Episode, showYearLabel: Bool)] {
+    episodes.enumerated().map { index, episode in
+        let showLabel = index == 0 || episode.year != episodes[index - 1].year
+        return (episode, showLabel)
+    }
+}
+
 struct EpisodeRowView: View {
     let episode: Episode
-    let allEpisodes: [Episode]
+    let showYearLabel: Bool  // Pre-calculated, not computed on each render
     let isCurrentlyPlaying: Bool
     let isCompleted: Bool
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Year label (only for first episode of year)
-            if episode.isFirstOfYear(in: allEpisodes) {
+            if showYearLabel {
                 Text("\(episode.year)")
                     .font(.system(.body, design: .monospaced))
                     .fontWeight(.bold)
@@ -147,25 +155,33 @@ struct EpisodeRowView: View {
 
 ### 3. List Container with Year Navigation
 
-Add optional year-based scrolling/navigation:
+Add optional year-based scrolling/navigation, using pre-calculated metadata:
 
 ```swift
 struct EpisodeListView: View {
     @State private var episodes: [Episode]
     @State private var selectedYear: Int?
+    @State private var completedEpisodeIds: Set<Int>
+    
+    private var episodeMetadata: [(episode: Episode, showYearLabel: Bool)] {
+        episodes.enumerated().map { index, episode in
+            let showLabel = index == 0 || episode.year != episodes[index - 1].year
+            return (episode, showLabel)
+        }
+    }
     
     var body: some View {
         ScrollViewReader { scrollProxy in
-            List(episodes) { episode in
+            List(episodeMetadata, id: \.episode.id) { metadata in
                 EpisodeRowView(
-                    episode: episode,
-                    allEpisodes: episodes,
-                    isCurrentlyPlaying: episode.id == currentlyPlayingId,
-                    isCompleted: completedEpisodes.contains(episode.id)
+                    episode: metadata.episode,
+                    showYearLabel: metadata.showYearLabel,
+                    isCurrentlyPlaying: metadata.episode.id == currentlyPlayingId,
+                    isCompleted: completedEpisodeIds.contains(metadata.episode.id)
                 )
-                .id(episode.id)
+                .id(metadata.episode.id)
                 .onTapGesture {
-                    playEpisode(episode)
+                    playEpisode(metadata.episode)
                 }
             }
             .listStyle(.plain)
